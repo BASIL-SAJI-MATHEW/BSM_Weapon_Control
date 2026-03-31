@@ -69,3 +69,68 @@ CreateThread(function()
     end
     print('^2[BSM-WEAPON-CONTROL]^0 Framework initialized: ' .. BSM.Framework)
 end)
+
+-- Admin Check
+function BSM.IsAdmin(src)
+    if BSM.Framework == 'esx' then
+        local ESX = exports['es_extended']:getSharedObject()
+        local xPlayer = ESX.GetPlayerFromId(src)
+        if not xPlayer then return false end
+        for _, group in ipairs(Config.AdminGroups) do
+            if xPlayer.getGroup() == group then return true end
+        end
+    elseif BSM.Framework == 'qbcore' then
+        local QBCore = exports['qb-core']:GetCoreObject()
+        local Player = QBCore.Functions.GetPlayer(src)
+        if not Player then return false end
+        for _, group in ipairs(Config.AdminGroups) do
+            if QBCore.Functions.HasPermission(src, group) then return true end
+        end
+    elseif BSM.Framework == 'qbox' then
+        local qbx = exports.qbx_core
+        local Player = qbx:GetPlayer(src)
+        if not Player then return false end
+        for _, group in ipairs(Config.AdminGroups) do
+            if Player.PlayerData.group == group then return true end
+        end
+    else
+        -- Standalone: Check ACE permission
+        for _, group in ipairs(Config.AdminGroups) do
+            if IsPlayerAceAllowed(src, 'group.' .. group) then return true end
+        end
+    end
+    return false
+end
+
+-- Notification
+function BSM.Notify(src, title, message, type)
+    TriggerClientEvent('bsm_weapon_control:client:notify', src, title, message, type)
+end
+
+-- Parse positive number
+function BSM.ParsePositiveNumber(str)
+    local num = tonumber(str)
+    if num and num > 0 then return num end
+    return nil
+end
+
+-- For each player in radius
+function BSM.ForEachPlayerInRadius(source, radius, callback)
+    local srcPed = GetPlayerPed(source)
+    local srcCoords = GetEntityCoords(srcPed)
+    local players = GetPlayers()
+    local count = 0
+    for _, pid in ipairs(players) do
+        local tSrc = tonumber(pid)
+        if tSrc ~= source then
+            local tPed = GetPlayerPed(tSrc)
+            local tCoords = GetEntityCoords(tPed)
+            local dist = #(srcCoords - tCoords)
+            if dist <= radius then
+                callback(tSrc)
+                count = count + 1
+            end
+        end
+    end
+    return count
+end

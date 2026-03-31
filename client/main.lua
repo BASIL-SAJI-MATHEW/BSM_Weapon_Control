@@ -1,6 +1,11 @@
 -- BSM | Basil Saji Mathew
 -- Client Core Loop
 
+-- Anti-Tampering: Check script name
+if GetCurrentResourceName() ~= 'bsm_weapon_control' then
+    print('^1[BSM-WEAPON-CONTROL] WARNING: Script name has been changed! This may cause issues. Please keep the resource name as "bsm_weapon_control".^0')
+end
+
 local isDisarmed = false
 local disarmEndTime = 0
 local bypassJobs = Config.BypassJobs

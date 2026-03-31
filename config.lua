@@ -18,7 +18,7 @@ Config.Timer = {
 
 Config.Features = {
     DeathDisarm = true, -- Disarm players on death and keep disarmed after revive
-    ItemUsage = true, -- Enable usage of items (weapon_disabler, weapon_enabler)
+    ItemUsage = false, -- Enable usage of items (weapon_disabler, weapon_enabler)
     RadiusSystem = true, -- Disable/Enable weapons for players in a radius
     SaveToDatabase = true, -- Enable persistence of disarm states
     SafeZones = true -- Enable safe zone auto-disarm feature

@@ -1,8 +1,12 @@
 -- BSM | Basil Saji Mathew
 -- Server Main Script
 
+-- Anti-Tampering: Check script name
+if GetCurrentResourceName() ~= 'bsm_weapon_control' then
+    print('^1[BSM-WEAPON-CONTROL] WARNING: Script name has been changed! This may cause issues. Please keep the resource name as "bsm_weapon_control".^0')
+end
+
 local PlayersState = {}
-local ItemCooldowns = {}
 
 -- Utility: Logging to Discord
 function SendLog(title, message)
@@ -102,42 +106,151 @@ AddEventHandler("playerDropped", function(reason)
     end
 end)
 
--- Usable Items (ox_inventory hook)
-CreateThread(function()
-    Wait(1000)
-    if Config.Features.ItemUsage then
-        exports.ox_inventory:RegisterUsableItem(Config.Items.Disabler, function(source, name, item)
-            -- Check Cooldown
-            local lastUse = ItemCooldowns[source] or 0
-            local current = os.time()
-            if current - lastUse < Config.Items.Cooldown then
-                TriggerClientEvent('bsm_weapon_control:client:notify', source, 'Cooldown', 'You must wait ' .. (Config.Items.Cooldown - (current - lastUse)) .. ' seconds before using this again.', 'error')
-                return false
-            end
-            
-            ItemCooldowns[source] = current
-            TriggerClientEvent('bsm_weapon_control:client:useItemProgress', source, 'disable')
-            -- Return true to consume if required, but generally admin tools aren't consumed
-            -- Returning nil or false prevents default consume in some frameworks, we will not remove the item.
-            return false 
-        end)
+-- Admin Commands
 
-        exports.ox_inventory:RegisterUsableItem(Config.Items.Enabler, function(source, name, item)
-            local lastUse = ItemCooldowns[source] or 0
-            local current = os.time()
-            if current - lastUse < Config.Items.Cooldown then
-                TriggerClientEvent('bsm_weapon_control:client:notify', source, 'Cooldown', 'You must wait ' .. (Config.Items.Cooldown - (current - lastUse)) .. ' seconds before using this again.', 'error')
-                return false
-            end
-            
-            ItemCooldowns[source] = current
-            TriggerClientEvent('bsm_weapon_control:client:useItemProgress', source, 'enable')
-            return false
-        end)
+-- Disable weapons for all players in radius
+RegisterCommand("wdallradius", function(source, args)
+    if not BSM.IsAdmin(source) then
+        BSM.Notify(source, "Weapons", "You don't have permission to use /wdallradius.", "error")
+        return
     end
-end)
+    if source == 0 then
+        BSM.Notify(source, "Weapons", "This command can only be used in-game.", "error")
+        return
+    end
+    local minutes = BSM.ParsePositiveNumber(args[1])
+    local radius = BSM.ParsePositiveNumber(args[2])
+    if not minutes or not radius then
+        BSM.Notify(source, "Weapons", "Usage: /wdallradius [minutes] [radius]", "error")
+        return
+    end
+    local count = BSM.ForEachPlayerInRadius(source, radius, function(target)
+        _DisableWeapons(target, minutes, "Admin radius command by " .. source)
+        BSM.Notify(target, "Weapons", "Your weapons are disabled for " .. minutes .. " minutes.", "warning")
+    end)
+    BSM.Notify(source, "Weapons", "Disabled weapons for " .. count .. " players within " .. radius .. " meters for " .. minutes .. " minutes.", "success")
+    SendLog("Admin Command", "Player " .. source .. " used /wdallradius, affected " .. count .. " players.")
+end, false)
 
-RegisterNetEvent('bsm_weapon_control:server:executeRadiusAction', function(action)
-    local src = source
-    HandleRadiusAction(src, action, Config.Timer.DefaultDisableTime)
-end)
+-- Enable weapons for all players in radius
+RegisterCommand("weallradius", function(source, args)
+    if not BSM.IsAdmin(source) then
+        BSM.Notify(source, "Weapons", "You don't have permission to use /weallradius.", "error")
+        return
+    end
+    if source == 0 then
+        BSM.Notify(source, "Weapons", "This command can only be used in-game.", "error")
+        return
+    end
+    local radius = BSM.ParsePositiveNumber(args[1])
+    if not radius then
+        BSM.Notify(source, "Weapons", "Usage: /weallradius [radius]", "error")
+        return
+    end
+    local count = BSM.ForEachPlayerInRadius(source, radius, function(target)
+        _EnableWeapons(target, true)
+        BSM.Notify(target, "Weapons", "Your weapons are now enabled.", "success")
+    end)
+    BSM.Notify(source, "Weapons", "Enabled weapons for " .. count .. " players within " .. radius .. " meters.", "success")
+    SendLog("Admin Command", "Player " .. source .. " used /weallradius, affected " .. count .. " players.")
+end, false)
+
+-- Disable weapons for a specific player
+RegisterCommand("wddisable", function(source, args)
+    if not BSM.IsAdmin(source) then
+        BSM.Notify(source, "Weapons", "You don't have permission to use /wddisable.", "error")
+        return
+    end
+    local targetId = tonumber(args[1])
+    local minutes = BSM.ParsePositiveNumber(args[2])
+    if not targetId or not minutes then
+        BSM.Notify(source, "Weapons", "Usage: /wddisable [player_id] [minutes]", "error")
+        return
+    end
+    if not GetPlayerName(targetId) then
+        BSM.Notify(source, "Weapons", "Player not found.", "error")
+        return
+    end
+    _DisableWeapons(targetId, minutes, "Admin Command by " .. source)
+    BSM.Notify(source, "Weapons", "Disabled weapons for player " .. targetId .. " for " .. minutes .. " minutes.", "success")
+    BSM.Notify(targetId, "Weapons", "Your weapons are disabled for " .. minutes .. " minutes by an admin.", "warning")
+    SendLog("Admin Command", "Player " .. source .. " disabled weapons for player " .. targetId .. " for " .. minutes .. " minutes.")
+end, false)
+
+-- Enable weapons for a specific player
+RegisterCommand("wenable", function(source, args)
+    if not BSM.IsAdmin(source) then
+        BSM.Notify(source, "Weapons", "You don't have permission to use /wenable.", "error")
+        return
+    end
+    local targetId = tonumber(args[1])
+    if not targetId then
+        BSM.Notify(source, "Weapons", "Usage: /wenable [player_id]", "error")
+        return
+    end
+    if not GetPlayerName(targetId) then
+        BSM.Notify(source, "Weapons", "Player not found.", "error")
+        return
+    end
+    _EnableWeapons(targetId)
+    BSM.Notify(source, "Weapons", "Enabled weapons for player " .. targetId .. ".", "success")
+    BSM.Notify(targetId, "Weapons", "Your weapons are now enabled by an admin.", "success")
+    SendLog("Admin Command", "Player " .. source .. " enabled weapons for player " .. targetId .. ".")
+end, false)
+
+-- Disable weapons for all players
+RegisterCommand("wdall", function(source, args)
+    if not BSM.IsAdmin(source) then
+        BSM.Notify(source, "Weapons", "You don't have permission to use /wdall.", "error")
+        return
+    end
+    local minutes = BSM.ParsePositiveNumber(args[1]) or Config.Timer.DefaultDisableTime
+    local players = GetPlayers()
+    local count = 0
+    for _, pid in ipairs(players) do
+        local tSrc = tonumber(pid)
+        _DisableWeapons(tSrc, minutes, "Admin Command by " .. source)
+        BSM.Notify(tSrc, "Weapons", "Your weapons are disabled for " .. minutes .. " minutes by an admin.", "warning")
+        count = count + 1
+    end
+    BSM.Notify(source, "Weapons", "Disabled weapons for all " .. count .. " players for " .. minutes .. " minutes.", "success")
+    SendLog("Admin Command", "Player " .. source .. " used /wdall, affected " .. count .. " players.")
+end, false)
+
+-- Enable weapons for all players
+RegisterCommand("weall", function(source, args)
+    if not BSM.IsAdmin(source) then
+        BSM.Notify(source, "Weapons", "You don't have permission to use /weall.", "error")
+        return
+    end
+    local players = GetPlayers()
+    local count = 0
+    for _, pid in ipairs(players) do
+        local tSrc = tonumber(pid)
+        _EnableWeapons(tSrc)
+        BSM.Notify(tSrc, "Weapons", "Your weapons are now enabled by an admin.", "success")
+        count = count + 1
+    end
+    BSM.Notify(source, "Weapons", "Enabled weapons for all " .. count .. " players.", "success")
+    SendLog("Admin Command", "Player " .. source .. " used /weall, affected " .. count .. " players.")
+end, false)
+
+-- Check disarm status
+RegisterCommand("wdstatus", function(source, args)
+    if not BSM.IsAdmin(source) then
+        BSM.Notify(source, "Weapons", "You don't have permission to use /wdstatus.", "error")
+        return
+    end
+    local targetId = tonumber(args[1]) or source
+    if not GetPlayerName(targetId) then
+        BSM.Notify(source, "Weapons", "Player not found.", "error")
+        return
+    end
+    local endTime = PlayersState[targetId]
+    if endTime then
+        local remaining = math.ceil((endTime - (os.time() * 1000)) / 60000)
+        BSM.Notify(source, "Weapons", "Player " .. targetId .. " is disarmed for " .. remaining .. " more minutes.", "info")
+    else
+        BSM.Notify(source, "Weapons", "Player " .. targetId .. " is not disarmed.", "info")
+    end
+end, false)

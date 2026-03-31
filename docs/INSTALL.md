@@ -11,37 +11,26 @@ Import the provided SQL schema to structure the persistence data:
 ## 2. Resource Placement
 1. Drag and drop the `bsm_weapon_control` folder into your `resources/` directory.
 2. Open your `server.cfg` file.
-3. Ensure the resource starts **after** your framework and `ox_inventory` / `ox_lib`.
+3. Ensure the resource starts **after** your framework and `ox_lib`.
 ```cfg
 ensure oxmysql
 ensure ox_lib
-ensure ox_inventory
 # ... your framework core ...
 ensure bsm_weapon_control
 ```
 
-## 3. Configure Items (ox_inventory)
-Since the script uses items instead of commands, you must register them in your `ox_inventory` configuration.
+## 3. Admin Commands
+The script now uses admin commands instead of items. Admins with the configured groups can use the following commands:
 
-Open `ox_inventory/data/items.lua` and add the following definitions:
-```lua
-['weapon_disabler'] = {
-    label = 'Weapon Disabler Handheld',
-    weight = 500,
-    stack = false,
-    close = true,
-    description = 'An admin tool that disables weapons in a 15m radius.',
-},
-['weapon_enabler'] = {
-    label = 'Weapon Enabler Handheld',
-    weight = 500,
-    stack = false,
-    close = true,
-    description = 'An admin tool that enables weapons in a 15m radius.',
-},
-```
+- `/wdallradius [minutes] [radius]` - Disable weapons for all players in the specified radius for the given minutes.
+- `/weallradius [radius]` - Enable weapons for all players in the specified radius.
+- `/wddisable [player_id] [minutes]` - Disable weapons for a specific player.
+- `/wenable [player_id]` - Enable weapons for a specific player.
+- `/wdall [minutes]` - Disable weapons for all players (default minutes if not specified).
+- `/weall` - Enable weapons for all players.
+- `/wdstatus [player_id]` - Check the disarm status of a player (or yourself if no ID).
 
-*(You can spawn these items via your framework's admin menu, e.g., `/giveitem [id] weapon_disabler 1`)*
+Ensure your admins have the groups defined in `config.lua` under `Config.AdminGroups`.
 
 ## 4. Finalize
 1. Review the `config.lua` and tune it to your liking. (See `CONFIG.md`)
