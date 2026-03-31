@@ -51,7 +51,7 @@ Config.SafeZones = {
 }
 
 Config.UI = {
-    -- Notification options: 'ox_lib' or 'custom' (edit edits/notification.lua)
+    -- Notification options: 'ox_lib', 'wasabi', or 'custom' (edit edits/notification.lua)
     NotificationStyle = 'ox_lib', 
     -- Progress bar options: 'ox_lib' or 'custom' (edit edits/progressbar.lua)
     ProgressStyle = 'ox_lib' 

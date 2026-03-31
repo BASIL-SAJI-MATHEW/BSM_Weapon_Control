@@ -16,6 +16,7 @@ shared_scripts {
 }
 
 client_scripts {
+    'edits/notification.lua',
     'client/main.lua',
     'client/events.lua',
     'client/death.lua',
